@@ -6,13 +6,20 @@ function RandomGroupGenerator() {
     const [groupCount, setGroupCount] = useState("");
     const [groups, setGroups] = useState([]);
     const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [loadingGif, setLoadingGif] = useState("");
+
     const [showTeacherTool, setShowTeacherTool] = useState(false); // Toggle for teacher tool
     const [restrictedPairings, setRestrictedPairings] = useState([["", ""]]);
 
     const handleInputChange = (event) => {
         setInputValue(event.target.value);
     };
-
+    const gifList = [
+        "/gifs/loading1.gif",
+        "/gifs/loading2.gif",
+        "/gifs/loading3.gif",
+    ];
     const handleAddNames = () => {
         const newNames = inputValue
             .split(",")
@@ -48,71 +55,80 @@ function RandomGroupGenerator() {
         }
 
         setError("");
+        setLoading(true);
 
-        // Shuffle names array
-        const shuffledNames = [...names].sort(() => Math.random() - 0.5);
+        setLoadingGif(gifList[Math.floor(Math.random() * gifList.length)]);
 
-        // Create groups
-        const newGroups = Array.from({ length: numGroups }, () => []);
+        setTimeout(() => {
+            // Shuffle names array
+            const shuffledNames = [...names].sort(() => Math.random() - 0.5);
 
-        // Prepare constraints from restrictedPairings
-        const constraints = restrictedPairings.reduce((acc, [a, b]) => {
-            acc[a] = acc[a] || [];
-            acc[a].push(b);
-            acc[b] = acc[b] || [];
-            acc[b].push(a);
-            return acc;
-        }, {});
+            // Create groups
+            const newGroups = Array.from({ length: numGroups }, () => []);
 
-        // Function to check if a name can be placed in a group
-        const canPlaceInGroup = (name, group) => {
-            return !group.some((member) => constraints[member]?.includes(name));
-        };
+            // Prepare constraints from restrictedPairings
+            const constraints = restrictedPairings.reduce((acc, [a, b]) => {
+                acc[a] = acc[a] || [];
+                acc[a].push(b);
+                acc[b] = acc[b] || [];
+                acc[b].push(a);
+                return acc;
+            }, {});
 
-        // Place names in groups
-        shuffledNames.forEach((name) => {
-            let placed = false;
+            // Function to check if a name can be placed in a group
+            const canPlaceInGroup = (name, group) => {
+                return !group.some((member) =>
+                    constraints[member]?.includes(name)
+                );
+            };
 
-            // Find the group with the least members where the name can be placed
-            for (let i = 0; i < numGroups; i++) {
-                const group = newGroups[i];
-                if (canPlaceInGroup(name, group)) {
-                    group.push(name);
-                    placed = true;
+            // Place names in groups
+            shuffledNames.forEach((name) => {
+                let placed = false;
+
+                for (let i = 0; i < numGroups; i++) {
+                    const group = newGroups[i];
+                    if (canPlaceInGroup(name, group)) {
+                        group.push(name);
+                        placed = true;
+                        break;
+                    }
+                }
+
+                if (!placed) {
+                    const leastPopulatedGroup = newGroups.reduce(
+                        (leastGroup, currentGroup) =>
+                            currentGroup.length < leastGroup.length
+                                ? currentGroup
+                                : leastGroup
+                    );
+                    leastPopulatedGroup.push(name);
+                }
+            });
+
+            while (true) {
+                const maxGroup = newGroups.reduce((maxGroup, currentGroup) =>
+                    currentGroup.length > maxGroup.length
+                        ? currentGroup
+                        : maxGroup
+                );
+                const minGroup = newGroups.reduce((minGroup, currentGroup) =>
+                    currentGroup.length < minGroup.length
+                        ? currentGroup
+                        : minGroup
+                );
+
+                if (maxGroup.length - minGroup.length <= 1) {
                     break;
                 }
+
+                const nameToMove = maxGroup.pop();
+                minGroup.push(nameToMove);
             }
 
-            // If not placed in any group, place in the least populated group
-            if (!placed) {
-                const leastPopulatedGroup = newGroups.reduce(
-                    (leastGroup, currentGroup) =>
-                        currentGroup.length < leastGroup.length
-                            ? currentGroup
-                            : leastGroup
-                );
-                leastPopulatedGroup.push(name);
-            }
-        });
-
-        // Balance the groups if necessary
-        while (true) {
-            const maxGroup = newGroups.reduce((maxGroup, currentGroup) =>
-                currentGroup.length > maxGroup.length ? currentGroup : maxGroup
-            );
-            const minGroup = newGroups.reduce((minGroup, currentGroup) =>
-                currentGroup.length < minGroup.length ? currentGroup : minGroup
-            );
-
-            if (maxGroup.length - minGroup.length <= 1) {
-                break;
-            }
-
-            const nameToMove = maxGroup.pop();
-            minGroup.push(nameToMove);
-        }
-
-        setGroups(newGroups);
+            setGroups(newGroups);
+            setLoading(false);
+        }, 3000);
     };
 
     const handleRestrictedPairingsChange = (index, value) => {
